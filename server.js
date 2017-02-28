@@ -1,21 +1,21 @@
 #!/bin/env node
 
-var http = require('http');
+var http = require("http");
+var fs = require("fs");
+var ws = require("ws");
 
-var App = function() {
+var static = require("./static");
+var tracker = require("./tracker");
+
+function App() {
 	var self = this;
 
-	self.setupVariables = function() {
+	self.setupVars = function() {
 		//  Set the environment variables we need.
-		self.ipaddress = process.env.OPENSHIFT_NODEJS_IP;
-		self.port      = process.env.OPENSHIFT_NODEJS_PORT || 8080;
-
-		if (typeof self.ipaddress === "undefined") {
-			//  Log errors on OpenShift but continue w/ 127.0.0.1 - this
-			//  allows us to run/test the app locally.
-			console.warn('No OPENSHIFT_NODEJS_IP var, using 127.0.0.1');
-			self.ipaddress = "127.0.0.1";
-		};
+		self.ipaddr = process.env.OPENSHIFT_NODEJS_IP || process.env.LOCAL_IP || "localhost";
+		self.port   = process.env.OPENSHIFT_NODEJS_PORT || process.env.LOCAL_PORT || 8080;
+		self.wsport = process.env.LOCAL_WS_PORT;
+		console.log("%s: { ipaddr: %s, port: %s, wsport: %s }", Date(Date.now()), self.ipaddr, self.port, self.wsport);
 	};
 
 	/**
@@ -25,48 +25,61 @@ var App = function() {
 	 */
 	self.terminator = function(sig){
 		if (typeof sig === "string") {
-			console.log('%s: Received %s - terminating sample app ...', Date(Date.now()), sig);
+			console.log("%s: %s received - terminating ...", Date(Date.now()), sig);
 			process.exit(1);
 		}
-		console.log('%s: Node server stopped.', Date(Date.now()) );
+		console.log("%s: server stopped", Date(Date.now()));
 	};
 
-	self.setupTerminationHandlers = function(){
+	self.setupTermHandlers = function(){
 		//  Process on exit and signals.
-		process.on('exit', function() { self.terminator(); });
+		process.on("exit", function() { self.terminator(); });
 
-		// Removed 'SIGPIPE' from the list - bugz 852598.
-		['SIGHUP', 'SIGINT', 'SIGQUIT', 'SIGILL', 'SIGTRAP', 'SIGABRT',
-		 'SIGBUS', 'SIGFPE', 'SIGUSR1', 'SIGSEGV', 'SIGUSR2', 'SIGTERM'
+		// Removed "SIGPIPE" from the list - bugz 852598.
+		["SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT",
+		 "SIGBUS", "SIGFPE", "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGTERM"
 		].forEach(function(element, index, array) {
 			process.on(element, function() { self.terminator(element); });
 		});
 	};
 
-	self.initializeServer = function() {
-		self.server = http.createServer(function(req, res) {
-			res.statusCode = 200;
-			res.setHeader('Content-Type', 'text/plain');
-			res.end('Hello World\n');
+	self.initTracker = function() {
+		self.tracker = new tracker.Tracker();
+	};
+
+	self.initHttp = function() {
+		self.fileServer = new static.FileServer();
+		self.httpServer = http.createServer(function(req, res) {
+			self.fileServer.handle(req, res);
 		});
 	};
 
-	self.initialize = function() {
-		self.setupVariables();
-		self.setupTerminationHandlers();
+	self.initWs = function() {
+		self.wsServer = new ws.Server({server: self.http_server, port: self.wsport});
+		self.wsServer.on("connection", function (websocket) {
+			self.tracker.connect(websocket);
+		});
+	};
+	
 
-		self.initializeServer();
+	self.init = function() {
+		self.setupVars();
+		self.setupTermHandlers();
+
+		self.initTracker();
+		self.initHttp();
+		self.initWs();
 	};
 
 	self.start = function() {
-		self.server.listen(self.port, self.ipaddress, function() {
-			console.log('%s: Node server started on %s:%d ...', Date(Date.now() ), self.ipaddress, self.port);
+		self.httpServer.listen(self.port, self.ipaddr, function() {
+			console.log("%s: server started on %s:%d ...", Date(Date.now()), self.ipaddr, self.port);
 		});
 	};
 
 };
 
 var app = new App();
-app.initialize();
+app.init();
 app.start();
 
