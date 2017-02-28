@@ -55,7 +55,7 @@ function App() {
 	};
 
 	self.initWs = function() {
-		self.wsServer = new ws.Server({server: self.http_server, port: self.wsport});
+		self.wsServer = new ws.Server({server: self.httpServer, port: self.wsport});
 		self.wsServer.on("connection", function (websocket) {
 			self.tracker.connect(websocket);
 		});
