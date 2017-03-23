@@ -9,53 +9,114 @@ function Peer(websocket) {
 	self.ip = websocket.upgradeReq.connection.remoteAddress;
 	self.port = websocket.upgradeReq.connection.remotePort;
 	self.addr = self.ip + ":" + self.port;
+
+	self.name = undefined;
+	self.image = undefined;
+}
+
+function PeerTable(callbacks) {
+	var self = this;
+
+	self.table = {};
+
+	self.callbacks = callbacks;
+
+	self.add = function (peer) {
+		console.log("peer.add %s", peer.addr);
+		if (self.table.hasOwnProperty(peer.addr)) {
+			return false;
+		} else {
+			self.table[peer.addr] = peer;
+			self.callbacks.add(self.table, peer.addr);
+			return true;
+		}
+	}
+
+	self.del = function (addr) {
+		if (self.table.hasOwnProperty(addr)) {
+			var peer = self.table[addr];
+			delete self.table[addr];
+			peer.websocket.close();
+			self.callbacks.del(self.table, addr);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	self.mod = function (addr, modifier) {
+		if (self.table.hasOwnProperty(addr)) {
+			modifier(self.table[addr]);
+			self.callbacks.mod(self.table, addr);
+			return true;
+		} else {
+			return false;
+		}
+	}
 }
 
 function Tracker() {
 	var self = this;
 
-	self.peers = {};
+	self.peers = new PeerTable({
+		add: function(table, addr) {
+			for (var key in table) { if (table.hasOwnProperty(key)) {
+				if (key == addr) {
+					table[key].websocket.send(JSON.stringify({
+						method: "add",
+						peers: Object.keys(table)
+					}));
+				} else {
+					table[key].websocket.send(JSON.stringify({
+						method: "add",
+						peers: [addr]
+					}));
+				}
+			}}
+		},
+		del: function(table, addr) {
+			for (var key in table) { if (table.hasOwnProperty(key)) {
+				table[key].websocket.send(JSON.stringify({
+					method: "del",
+					peers: [addr]
+				}));
+			}}
+		},
+		mod: function(table, addr) {
+			for (var key in table) { if (table.hasOwnProperty(key)) {
+				table[key].websocket.send(JSON.stringify({
+					method: "mod",
+					peers: [addr]
+				}));
+			}}
+		}
+	});
 
 	self.channels = {
-		"peers": {
-			subscribe: function(peer) {
-				console.log("websocket open from '%s' at '%s'", peer.addr, "peers");
+		track: function(peer) {
+			self.peers.add(peer);
 
-				var send = function () {
-					var msg = JSON.stringify(Object.keys(self.peers));
-					for (var key in self.peers) {
-						if (self.peers.hasOwnProperty(key)) {
-							self.peers[key].websocket.send(msg);
-						}
-					}
-				}
+			peer.websocket.on("message", function (message, flags) {
+				console.log("websocket message: {message: %s, flags: %s}", message, flags);
+			});
 
-				self.peers[peer.addr] = peer;
-				send();
+			peer.websocket.on("close", function (code, message) {
+				console.log("websocket close: {code: %s, message: %s}", code, message);
+				self.peers.del(peer.addr);
+			});
 
-				peer.websocket.on("message", function (message, flags) {
-					console.log("websocket message: {message: %s, flags: %s}", message, flags);
-				});
-
-				peer.websocket.on("close", function (code, message) {
-					console.log("websocket close: {code: %s, message: %s}", code, message);
-					delete self.peers[peer.addr];
-					send();
-				});
-
-				peer.websocket.on("error", function (error) {
-					console.log("websocket error: {error: %s}", error);
-					delete self.peers[peer.addr];
-					send();
-				});
-			}
+			peer.websocket.on("error", function (error) {
+				console.log("websocket error: {error: %s}", error);
+				self.peers.del(peer.addr);
+			});
 		}
 	};
 
 	self.connect = function(websocket) {
 		var channel = url.parse(websocket.upgradeReq.url).pathname.replace(/^\/|\/$/g, '');
 		var peer = new Peer(websocket);
-		self.channels[channel].subscribe(peer);
+		console.log("websocket opened from '%s' to '%s' channel", peer.addr, channel);
+		self.channels[channel](peer);
 	};
 }
 

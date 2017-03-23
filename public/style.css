@@ -1,9 +1,13 @@
+html {
+	font-family: "DejaVu Sans" sans-serif
+}
+
 #page {
 	margin: 0;
 	padding: 0;
 	min-height: 100%;
 	position: relative;
-	background-color: #EEDDDD;
+	background-color: #DDDDDD;
 }
 
 #content {
@@ -12,9 +16,9 @@
 }
 
 #header {
-	padding: 16px;
-	color: #FFFFFF;
-	background-color: #7B00CC;
+	padding: 4px 16px;
+	color: #228800;
+	background-color: #FFFFFF;
 
 	box-shadow: 0 0 8px rgba(0,0,0,0.4);
 }
@@ -23,11 +27,11 @@
 	margin: 0;
 	padding: 0;
 
-	color: #FFFFFF;
-	background-color: #7B00CC;
+	color: #000000;
+	background-color: #FFFFFF;
 
 	width: 100%;
-	height: 80px;
+	height: 60px;
 	position: absolute;
 	bottom: 0;
 	left: 0;
@@ -36,7 +40,7 @@
 }
 
 #footer-content {
-	padding: 16px;
+	padding: 4px 16px;
 	top: 0;
 }
 
@@ -47,6 +51,7 @@
 	color: #000000;
 	background-color: #FFFFFF;
 	box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+	cursor: pointer;
 }
 
 .peer:link, .peer:visited {
@@ -55,7 +60,6 @@
 
 .peer:hover, .peer:active {
 	text-decoration: none;
-	color: #0000AA;
 	box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
@@ -77,13 +81,11 @@
 	margin-right: 16px;
 }
 
-#fork-me {
+#repo {
 	display: inline-block;
-	margin: 16px;
+	margin: 4px;
 	padding: 8px;
-	color: #FFFFFF;
-	text-decoration: none;
-	border: 2px solid #FFFFFF;
+	color: #000000;
 	font-weight: bold;
 
 	position: absolute;
@@ -91,18 +93,12 @@
 	right: 0;
 }
 
-#fork-me:hover {
-	color: #7B00CC;
-	background-color: #FFFFFF;
-
-}
-
 #openshift-link {
-	color: #FF2222;
+	color: #E22434;
 	font-weight: bold;
 }
 
 #nodejs-link {
-	color: #80BD01;
+	color: #026E00;
 	font-weight: bold;
 }

@@ -1,4 +1,45 @@
-function addPeerEntry(addr) {
+function PeerTable(htmlContainer) {
+	var self = this;
+
+	self.table = {};
+
+	self.htmlContainer = htmlContainer;
+
+	self.add = function(peer) {
+		if (self.table.hasOwnProperty(peer.addr)) {
+			return false;
+		} else {
+			self.table[peer.addr] = peer;
+			self.htmlContainer.appendChild(peer.html);
+			return true;
+		}
+	}
+
+	self.del = function(addr) {
+		if (self.table.hasOwnProperty(addr)) {
+			var peer = self.table[addr];
+			peers.removeChild(peer.html);
+			delete self.table[addr];
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	self.mod = function(addr) {
+		if (self.table.hasOwnProperty(addr)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+}
+
+function Peer(addr) {
+	var self = this;
+
+	self.addr = addr;
+
 	var entry = document.createElement('div');
 	entry.className = 'peer';
 
@@ -12,7 +53,7 @@ function addPeerEntry(addr) {
 
 	var img = document.createElement('img');
 	img.className = 'peer-image';
-	img.src = "/img/hex64.png";
+	img.src = "/img/hex48.png";
 	entry.appendChild(img);
 
 	var textContainer = document.createElement('div');
@@ -22,18 +63,13 @@ function addPeerEntry(addr) {
 
 	entry.appendChild(textContainer);
 
-	document.getElementById('peers').appendChild(entry);
-}
-
-function clearPeerEntries() {
-	var peers = document.getElementById('peers');
-	while (peers.firstChild) {
-		peers.removeChild(peers.firstChild);
-	}
+	self.html = entry;
 }
 
 function ready() {
-	var websocket = openWebSocket("peers");
+	var peers = new PeerTable(document.getElementById("peers"));
+
+	var websocket = openWebSocket("track");
 	websocket.onopen = function(event) {
 		console.log('websocket opened');
 	};
@@ -42,10 +78,19 @@ function ready() {
 	};
 	websocket.onmessage = function(event) {
 		console.log('websocket message: ' + event.data);
-		clearPeerEntries();
-		var peers = JSON.parse(event.data);
-		for (var addr of peers) {
-			addPeerEntry(addr);
+		var message = JSON.parse(event.data);
+		if (message.method == "add") {
+			for (var addr of message.peers) {
+				peers.add(new Peer(addr));
+			}
+		} else if (message.method == "del") {
+			for (var addr of message.peers) {
+				peers.del(addr);
+			}
+		} else if (message.method == "mod") {
+			for (var addr of message.peers) {
+				peers.mod(addr);
+			}
 		}
 	};
 	websocket.onerror = function(event) { 
